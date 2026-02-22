@@ -108,6 +108,18 @@ footer{background:var(--accent);color:#fff;padding:10px 20px;text-align:center;f
 .tb-btn-export{background:rgba(26,74,46,.5);color:#7dd9a0;border-color:#2d5c3a;}
 .tb-btn-export:hover{background:#0f3320!important;color:#a0f0c0!important;}
 
+/* Toolbar inline selects (like the line-style select) should remain readable */
+#tb-line-style, #tool-line select {
+  color: #000 !important;
+  background: #fff !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+#tb-line-style option{ color:#000 !important; background:#fff !important; }
+
 /* Body split */
 .exp-body{flex:1;display:flex;min-height:0;overflow:hidden;}
 
@@ -290,13 +302,21 @@ select.tp-input{cursor:pointer;font-family:'Oxanium',sans-serif;}
         <textarea id="raw-input" placeholder="1-2&#9;S 75 38 E&#9;8.58&#10;2-3&#9;S 14 27 W&#9;14.18&#10;..."></textarea>
         <div class="btn-row">
           <button class="btn btn-primary btn-sm" onclick="parseAndLoad()">⟵ Parse &amp; Load</button>
-          <button class="btn btn-secondary btn-sm" onclick="loadSampleData()">◷ Sample</button>
+          <button class="btn btn-secondary btn-sm" onclick="pasteFromClipboard()">📋 Clipboard</button>
           <button class="btn btn-secondary btn-sm" onclick="clearAll()">✕ Clear</button>
+          <button class="btn btn-secondary btn-sm" onclick="loadSampleData()">◷ Sample</button>
           <div class="divider"></div>
           <div class="undo-bar">
             <span class="undo-label">Paste:</span>
             <button class="btn btn-secondary btn-icon" id="paste-undo-btn" onclick="pasteUndo()">↩</button>
             <button class="btn btn-secondary btn-icon" id="paste-redo-btn" onclick="pasteRedo()">↪</button>
+          </div>
+          <div class="divider"></div>
+          <div class="undo-bar">
+            <span class="undo-label">Size:</span>
+            <button class="btn btn-secondary btn-icon" onclick="zoomTextarea(1.1)" title="Zoom in">＋</button>
+            <button class="btn btn-secondary btn-icon" onclick="zoomTextarea(0.91)" title="Zoom out">－</button>
+            <span style="font-size:9px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;margin-left:2px;" id="textarea-zoom-level">100%</span>
           </div>
         </div>
       </div>
@@ -381,9 +401,17 @@ select.tp-input{cursor:pointer;font-family:'Oxanium',sans-serif;}
       <button class="tb-btn" id="tool-text" onclick="setTool('text')" title="Place text (T)">
         <span style="font-size:14px;font-weight:800;">A</span> Text
       </button>
-      <button class="tb-btn" id="tool-line" onclick="setTool('line')" title="Draw straight line (L)">
-        <span style="font-size:13px;">╱</span> Line
-      </button>
+      <div style="display:inline-flex;align-items:center;gap:6px;">
+        <button class="tb-btn" id="tool-line" onclick="setTool('line')" title="Draw straight line (L)" style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:13px;">╱</span>
+          <span>Line</span>
+          <select id="tb-line-style" title="Line style" style="margin-left:6px;background:transparent;border:none;color:inherit;font-family:inherit;font-size:11px;">
+            <option value="solid">— Solid</option>
+            <option value="dashed">- - Dashed</option>
+            <option value="dotted">· · Dotted</option>
+          </select>
+        </button>
+      </div>
       <button class="tb-btn" id="tool-poly" onclick="setTool('poly')" title="Draw polyline / broken line (P)">
         <span style="font-size:13px;">⌒</span> Polyline
       </button>
@@ -486,9 +514,7 @@ select.tp-input{cursor:pointer;font-family:'Oxanium',sans-serif;}
               <span class="cv" id="exp-fs-val">16</span>
             </div>
             <div class="cr"><span class="cl">Font Color</span><input type="color" id="exp-font-color" value="#000000" oninput="renderExport()"></div>
-            <div class="toggle-row" onclick="toggleOpt('autoInside')">
-              <div class="toggle" id="toggle-autoInside"></div><span class="cl">Auto Inside Polyline</span>
-            </div>
+            <button class="btn btn-secondary btn-sm full-btn" onclick="autoPlaceLabels()" style="justify-content:center;">🔄 Auto Inside Polyline</button>
             <button class="btn btn-secondary btn-sm full-btn" onclick="resetLabelPositions()">↺ Reset Label Positions</button>
           </div>
         </div>
@@ -514,15 +540,15 @@ select.tp-input{cursor:pointer;font-family:'Oxanium',sans-serif;}
             <!-- STROKE section -->
             <div class="draw-section">
               <div class="draw-section-title">╱ Stroke &amp; Lines</div>
-              <div class="cr"><span class="cl">Color</span><input type="color" id="d-stroke" value="#8b2e2e"></div>
+              <div class="cr"><span class="cl">Color</span><input type="color" id="d-stroke" value="#000000" oninput="renderExport()"></div>
               <div class="cr">
                 <span class="cl">Width</span>
-                <input type="range" id="d-width" min="0.5" max="14" step="0.5" value="2" oninput="syncR('d-width','d-width-val')">
+                <input type="range" id="d-width" min="0.5" max="14" step="0.5" value="2" oninput="syncR('d-width','d-width-val');renderExport()">
                 <span class="cv" id="d-width-val">2</span>
               </div>
               <div class="cr">
                 <span class="cl">Style</span>
-                <select class="ctrl-select" id="d-dash" style="flex:1;margin-left:6px;">
+                <select class="ctrl-select" id="d-dash" onchange="renderExport()" style="flex:1;margin-left:6px;">
                   <option value="solid">— Solid</option>
                   <option value="dashed">- - Dashed</option>
                   <option value="dotted">··· Dotted</option>
@@ -530,7 +556,7 @@ select.tp-input{cursor:pointer;font-family:'Oxanium',sans-serif;}
               </div>
               <div class="cr">
                 <span class="cl">Cap</span>
-                <select class="ctrl-select" id="d-cap" style="flex:1;margin-left:6px;">
+                <select class="ctrl-select" id="d-cap" onchange="renderExport()" style="flex:1;margin-left:6px;">
                   <option value="round">⬤ Round</option>
                   <option value="butt">| Flat</option>
                   <option value="square">▪ Square</option>
@@ -538,7 +564,7 @@ select.tp-input{cursor:pointer;font-family:'Oxanium',sans-serif;}
               </div>
               <div class="cr">
                 <span class="cl">Arrow</span>
-                <select class="ctrl-select" id="d-arrow" style="flex:1;margin-left:6px;">
+                <select class="ctrl-select" id="d-arrow" onchange="renderExport()" style="flex:1;margin-left:6px;">
                   <option value="none">None</option>
                   <option value="end">→ End</option>
                   <option value="start">← Start</option>
@@ -550,15 +576,15 @@ select.tp-input{cursor:pointer;font-family:'Oxanium',sans-serif;}
             <!-- TEXT section -->
             <div class="draw-section">
               <div class="draw-section-title">T Text</div>
-              <div class="cr"><span class="cl">Color</span><input type="color" id="d-text-color" value="#1a4a2e"></div>
+              <div class="cr"><span class="cl">Color</span><input type="color" id="d-text-color" value="#000000" oninput="renderExport()"></div>
               <div class="cr">
                 <span class="cl">Size</span>
-                <input type="range" id="d-font-size" min="8" max="72" step="1" value="18" oninput="syncR('d-font-size','d-fs-val')">
+                <input type="range" id="d-font-size" min="8" max="72" step="1" value="18" oninput="syncR('d-font-size','d-fs-val');renderExport()">
                 <span class="cv" id="d-fs-val">18</span>
               </div>
               <div class="cr">
                 <span class="cl">Font</span>
-                <select class="ctrl-select" id="d-font" style="flex:1;margin-left:6px;">
+                <select class="ctrl-select" id="d-font" onchange="renderExport()" style="flex:1;margin-left:6px;">
                   <option value="Oxanium">Oxanium</option>
                   <option value="Share Tech Mono">Mono</option>
                   <option value="Arial">Arial</option>
@@ -670,8 +696,10 @@ let surveyData=[];
 let pasteHistory=[''],pasteHistIdx=0;
 let tableHistory=[[]],tableHistIdx=0;
 let labelPositions={};
-let exportOpts={showLabels:false,showDots:true,autoInside:false};
+let exportOpts={showLabels:true,showDots:false,autoInside:false};
+let textareaZoom=1;
 let drawBold=false;
+let labelFontScale=1; // dynamic font scale based on traverse size
 let lv={ox:0,oy:0,sc:1,drag:false,lx:0,ly:0};
 
 // ── SHORTCUT CONFIG ──
@@ -702,6 +730,7 @@ let snapPt=null;         // current snap point {x,y,label}
 let iact={
   panning:false,lx:0,ly:0,
   dragLabel:null,dlbx:0,dlby:0,dlBase:null,
+  resizing:false,resizeOrigX:0,resizeOrigW:0,
   // line drawing
   lineStart:null,
   // polyline
@@ -725,12 +754,22 @@ function switchTab(n){
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',ns[i]===n));
   document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',ns[i]===n));
   if(n==='input')setTimeout(renderLivePlot,40);
-  if(n==='export')setTimeout(()=>{resizeExpCanvas();renderExport();},40);
+  if(n==='export'){
+    // Compute max distance and set font size to double it
+    let maxDist=1;
+    if(surveyData.length>0){
+      maxDist=Math.max(...surveyData.map(r=>r.dist||1));
+    }
+    const fontSize=Math.max(8,Math.min(60,Math.round(maxDist*2)));
+    document.getElementById('exp-font-size').value=fontSize;
+    syncR('exp-font-size','exp-fs-val');
+    setTimeout(()=>{resizeExpCanvas();renderExport();autoPlaceLabels();},40);
+  }
 }
 function toggleOpt(k){
   exportOpts[k]=!exportOpts[k];
   document.getElementById('toggle-'+k).classList.toggle('on',exportOpts[k]);
-  if(k==='autoInside'&&exportOpts[k])autoPlaceLabels();
+  previewDirty=true;
   renderExport();
 }
 function toggleBold(){
@@ -806,6 +845,33 @@ function makeToScreen(pts,W,H,pad,sc,ox,oy){
   const rX=mxX-mnX||1,rY=mxY-mnY||1;
   const bs=Math.min((W-pad*2)/rX,(H-pad*2)/rY);
   return(x,y)=>({sx:(x-mnX)*bs*sc+pad+ox+(W-pad*2-rX*bs*sc)/2,sy:(y-mnY)*bs*sc+pad+oy+(H-pad*2-rY*bs*sc)/2});
+}
+
+// Compute mapping parameters used by makeToScreen so we can invert the mapping.
+function computeMapParams(W,H,pad,sc,ox,oy){
+  const pts=computePoints(surveyData);
+  const ks=Object.keys(pts);
+  let mnX=Infinity,mxX=-Infinity,mnY=Infinity,mxY=-Infinity;
+  ks.forEach(k=>{mnX=Math.min(mnX,pts[k].x);mxX=Math.max(mxX,pts[k].x);mnY=Math.min(mnY,pts[k].y);mxY=Math.max(mxY,pts[k].y);});
+  const rX=mxX-mnX||1,rY=mxY-mnY||1;
+  const bs=Math.min((W-pad*2)/rX,(H-pad*2)/rY)||1;
+  const centerX=(W-pad*2 - rX*bs*sc)/2;
+  const centerY=(H-pad*2 - rY*bs*sc)/2;
+  return {mnX,mnY,rX,rY,bs,sc,ox,oy,pad,centerX,centerY};
+}
+
+function screenToWorld(sx,sy,params){
+  return {
+    x: params.mnX + ((sx - params.pad - params.ox - params.centerX) / (params.bs * params.sc)),
+    y: params.mnY + ((sy - params.pad - params.oy - params.centerY) / (params.bs * params.sc))
+  };
+}
+
+function worldToScreen(wx,wy,params){
+  return {
+    sx: (wx - params.mnX) * params.bs * params.sc + params.pad + params.ox + params.centerX,
+    sy: (wy - params.mnY) * params.bs * params.sc + params.pad + params.oy + params.centerY
+  };
 }
 
 // ════════════════════════════════════════════════════════
@@ -892,6 +958,14 @@ function moveSelected(dir){
   pushTableHist();renderTable();renderLivePlot();
 }
 function autoSortLines(){if(!surveyData.length){showToast('⚠ No data');return;}surveyData.forEach((r,i)=>r.line=`${i+1}-${i+2}`);pushTableHist();renderTable();renderLivePlot();showToast('✓ Re-numbered');}
+async function pasteFromClipboard(){
+  try{
+    const text=await navigator.clipboard.readText();
+    if(!text.trim()){showToast('⚠ Clipboard is empty');return;}
+    document.getElementById('raw-input').value=text;
+    recordPasteHist();parseAndLoad();
+  }catch(e){showToast('⚠ Clipboard access denied — paste manually',3200);}
+}
 function parseAndLoad(){const t=document.getElementById('raw-input').value.trim();if(!t){showToast('⚠ No data');return;}const p=parseRawText(t);if(!p.length){showToast('⚠ Could not parse');return;}p.forEach(r=>r._sel=false);surveyData=p;pushTableHist();renderTable();renderLivePlot();showToast(`✓ Loaded ${p.length} lines`);}
 function loadSampleData(){document.getElementById('raw-input').value=`1-2\tS 75 38 E\t8.58\t8-9\tN 11 04 E\t17.03\n2-3\tS 14 27 W\t14.18\t9-1\tN 09 29 E\t9.25\n3-4\tS 73 16 E\t0.92\n4-5\tS 12 54 W\t4.49\n5-6\tS 47 28 E\t5.24\n6-7\tS 41 17 W\t6.25\n7-8\tN 72 30 W\t9.63`;recordPasteHist();parseAndLoad();}
 function clearAll(){surveyData=[];document.getElementById('raw-input').value='';recordPasteHist();pushTableHist();renderTable();renderLivePlot();showToast('✓ Cleared');}
@@ -918,6 +992,31 @@ function renderLivePlot(){
 }
 function fitLivePlot(){lv.ox=0;lv.oy=0;lv.sc=1;renderLivePlot();}
 function zoomLive(f){lv.sc*=f;renderLivePlot();}
+function zoomLive(f){
+  const cv=document.getElementById('live-canvas');
+  if(!cv) { lv.sc*=f; renderLivePlot(); return; }
+  const px=cv.width/2, py=cv.height/2;
+  const pad=44; // same padding used in live plot
+  const before=computeMapParams(cv.width,cv.height,pad,lv.sc,lv.ox,lv.oy);
+  const world=screenToWorld(px,py,before);
+  lv.sc*=f;
+  const after=computeMapParams(cv.width,cv.height,pad,lv.sc,lv.ox,lv.oy);
+  const newScr=worldToScreen(world.x,world.y,after);
+  lv.ox += px - newScr.sx;
+  lv.oy += py - newScr.sy;
+  renderLivePlot();
+}
+function zoomTextarea(f){
+  textareaZoom*=f;
+  const ta=document.getElementById('raw-input');
+  const zoomLabel=document.getElementById('textarea-zoom-level');
+  if(ta){
+    ta.style.fontSize=(12*textareaZoom)+'px';
+  }
+  if(zoomLabel){
+    zoomLabel.textContent=(textareaZoom*100).toFixed(0)+'%';
+  }
+}
 const liveCV=document.getElementById('live-canvas');
 liveCV.addEventListener('mousedown',e=>{lv.drag=true;lv.lx=e.clientX;lv.ly=e.clientY;});
 liveCV.addEventListener('mousemove',e=>{if(!lv.drag)return;lv.ox+=e.clientX-lv.lx;lv.oy+=e.clientY-lv.ly;lv.lx=e.clientX;lv.ly=e.clientY;renderLivePlot();});
@@ -959,10 +1058,28 @@ function autoPlaceLabels(){
   const pts=computePoints(surveyData),cen=centroidOf(pts),opts=getExpOpts();
   const W=parseInt(document.getElementById('exp-width').value)||1200,H=parseInt(document.getElementById('exp-height').value)||900;
   const toS=makeToScreen(pts,W,H,opts.padding,est.sc,est.ox,est.oy),{sx:cx,sy:cy}=toS(cen.x,cen.y);
-  Object.keys(pts).forEach(k=>{const{sx,sy}=toS(pts[k].x,pts[k].y);const vx=cx-sx,vy=cy-sy,len=Math.sqrt(vx*vx+vy*vy)||1;const d=opts.fontSize*1.3;labelPositions[k]={dx:(vx/len)*d,dy:(vy/len)*d};});
+  // Compute traverse bounding box to scale label offsets and font
+  const ks=Object.keys(pts);
+  let mnX=Infinity,mxX=-Infinity,mnY=Infinity,mxY=-Infinity;
+  ks.forEach(k=>{mnX=Math.min(mnX,pts[k].x);mxX=Math.max(mxX,pts[k].x);mnY=Math.min(mnY,pts[k].y);mxY=Math.max(mxY,pts[k].y);});
+  const boxW=mxX-mnX||1,boxH=mxY-mnY||1;
+  const traverseScale=Math.sqrt(boxW*boxH); // diagonal size of bounds
+  // Compute dynamic font scale: scales between 0.7x and 1.5x based on traverse size
+  labelFontScale = Math.max(0.7, Math.min(1.5, 0.8 + traverseScale * 0.15));
+  const baseDist=opts.fontSize*1.3;
+  Object.keys(pts).forEach(k=>{
+    const{sx,sy}=toS(pts[k].x,pts[k].y);
+    const vx=cx-sx,vy=cy-sy,len=Math.sqrt(vx*vx+vy*vy)||1;
+    // Scale offset distance by traverse size so labels adjust to polyline dimensions
+    const d=baseDist*(1+traverseScale*0.05);
+    // store offsets in unscaled (base) units so drawTraverse can multiply by est.sc
+    labelPositions[k]={dx:(vx/len)*d/(est.sc||1),dy:(vy/len)*d/(est.sc||1)};
+  });
   showToast('✓ Labels placed inside');
+  previewDirty=true;
+  renderExport();
 }
-function resetLabelPositions(){labelPositions={};renderExport();showToast('✓ Labels reset');}
+function resetLabelPositions(){labelPositions={};labelFontScale=1;renderExport();showToast('✓ Labels reset');}
 
 function drawTraverse(ctx,pts,data,W,H,ox,oy,sc,opts){
   const pks=Object.keys(pts);if(!pks.length)return null;
@@ -972,7 +1089,7 @@ function drawTraverse(ctx,pts,data,W,H,ox,oy,sc,opts){
   for(const s of data){const[fr,to]=s.line.split('-');const fp=pts[fr],tp=pts[to];if(!fp||!tp)continue;const{sx:fx,sy:fy}=toS(fp.x,fp.y),{sx:tx,sy:ty}=toS(tp.x,tp.y);if(first){ctx.moveTo(fx,fy);first=false;}ctx.lineTo(tx,ty);}
   ctx.stroke();
   if(opts.showDots){pks.forEach(k=>{const{sx,sy}=toS(pts[k].x,pts[k].y);ctx.beginPath();ctx.arc(sx,sy,opts.dotSize,0,Math.PI*2);ctx.fillStyle=opts.lineColor;ctx.fill();});}
-  if(opts.showLabels){ctx.font=`bold ${opts.fontSize}px Oxanium,sans-serif`;ctx.fillStyle=opts.fontColor;ctx.textAlign='center';ctx.textBaseline='middle';pks.forEach(k=>{const{sx,sy}=toS(pts[k].x,pts[k].y);const def_dy=-opts.dotSize-opts.fontSize*0.7;const dx=labelPositions[k]?.dx??0,dy=labelPositions[k]?.dy??def_dy;ctx.fillText(k,sx+dx,sy+dy);});}
+  if(opts.showLabels){const sfs=Math.max(6,opts.fontSize*sc*labelFontScale);ctx.font=`bold ${sfs}px Oxanium,sans-serif`;ctx.fillStyle=opts.fontColor;ctx.textAlign='center';ctx.textBaseline='middle';pks.forEach(k=>{const{sx,sy}=toS(pts[k].x,pts[k].y);const defN=-(opts.dotSize+opts.fontSize*0.7);const sdx=(labelPositions[k]?.dx??0)*sc,sdy=(labelPositions[k]?.dy??defN)*sc;ctx.fillText(k,sx+sdx,sy+sdy);});}
   return toS;
 }
 
@@ -994,6 +1111,19 @@ function getDStyle(){
   };
 }
 
+// Binary-search font size that fills boxW pixels
+function fitFontSize(text,ff,bold,boxW){
+  if(!text||!boxW)return 12;
+  const ctx=expCV.getContext('2d');
+  let lo=4,hi=500;
+  for(let i=0;i<18;i++){
+    const mid=(lo+hi)/2;
+    ctx.font=`${bold?'bold ':''}${mid}px "${ff}",sans-serif`;
+    (ctx.measureText(text).width<=boxW)?lo=mid:hi=mid;
+  }
+  return Math.max(4,lo);
+}
+
 function renderObjects(ctx,objs,selId,ghostObj){
   const all=ghostObj?[...objs,ghostObj]:objs;
   for(const o of all){
@@ -1003,53 +1133,62 @@ function renderObjects(ctx,objs,selId,ghostObj){
     if(o.type==='line'||o.type==='poly'){
       const pts=o.type==='line'?[{x:o.x1,y:o.y1},{x:o.x2,y:o.y2}]:o.pts;
       if(pts.length<2){ctx.restore();continue;}
-      ctx.strokeStyle=o.stroke;ctx.lineWidth=o.width;
+      ctx.strokeStyle=o.stroke||'#000';ctx.lineWidth=o.width||1;
       ctx.setLineDash(o.dash||[]);ctx.lineCap=o.cap||'round';ctx.lineJoin='round';
-      // selection halo
-      if(sel){ctx.save();ctx.strokeStyle='rgba(74,144,226,.5)';ctx.lineWidth=o.width+6;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();ctx.restore();}
+      if(sel){ctx.save();ctx.strokeStyle='rgba(74,144,226,.5)';ctx.lineWidth=(o.width||1)+6;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();ctx.restore();}
       ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();
-      // arrows
       if(o.arrow&&o.arrow!=='none'){
-        const asz=o.arrowSz||14;ctx.fillStyle=o.stroke;ctx.setLineDash([]);
+        const asz=o.arrowSz||14;ctx.fillStyle=o.stroke||'#000';ctx.setLineDash([]);
         if(o.arrow==='end'||o.arrow==='both')drawArrow(ctx,pts[pts.length-2],pts[pts.length-1],asz);
         if(o.arrow==='start'||o.arrow==='both')drawArrow(ctx,pts[1],pts[0],asz);
       }
-      // vertex dots for polyline selection
       if(sel&&o.type==='poly'){ctx.fillStyle='rgba(74,144,226,.8)';pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill();});}
+      // endpoint handles for line
+      if(sel&&o.type==='line'){
+        ctx.fillStyle='rgba(74,144,226,.85)';
+        [{x:o.x1,y:o.y1},{x:o.x2,y:o.y2}].forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();});
+      }
     }
     else if(o.type==='text'){
-      const fs=o.fontSize||18,ff=o.fontFamily||'Oxanium';
-      const rot=o.rotation||0; // radians
-      ctx.font=`${o.bold?'bold ':''}${fs}px "${ff}",sans-serif`;
-      const tw=ctx.measureText(o.text||'').width;
+      const ff=o.fontFamily||'Oxanium',bold=o.bold||false;
+      let fs=o.fontSize||18;
+      if(o.boxW&&o.text)fs=fitFontSize(o.text,ff,bold,o.boxW);
+      ctx.font=`${bold?'bold ':''}${fs}px "${ff}",sans-serif`;
+      const tw=o.boxW??ctx.measureText(o.text||'').width;
+      const rot=o.rotation||0;
 
       ctx.save();
-      ctx.translate(o.x+tw/2, o.y+fs/2); // rotate around text center
+      ctx.translate(o.x+tw/2,o.y+fs/2);
       ctx.rotate(rot);
-      ctx.fillStyle=o.textColor||'#1a4a2e';
+      ctx.fillStyle=o.textColor||'#000000';
       ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(o.text||'',0,0);
 
       if(sel){
-        // Selection box
         const hw=tw/2+4,hh=fs/2+4;
+        // Selection box
         ctx.strokeStyle='rgba(74,144,226,.85)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
-        ctx.strokeRect(-hw,-hh,hw*2,hh*2);
-        ctx.setLineDash([]);
-
-        // Rotation handle: circle above the top-center of the box
-        const hx=0, hy=-(hh+18);
-        // Stem line
+        ctx.strokeRect(-hw,-hh,hw*2,hh*2);ctx.setLineDash([]);
+        // Rotation handle (top-center)
+        const rhx=0,rhy=-(hh+18);
         ctx.strokeStyle='rgba(74,144,226,.6)';ctx.lineWidth=1;
-        ctx.beginPath();ctx.moveTo(0,-hh);ctx.lineTo(hx,hy-6);ctx.stroke();
-        // Handle circle
-        ctx.beginPath();ctx.arc(hx,hy,6,0,Math.PI*2);
+        ctx.beginPath();ctx.moveTo(0,-hh);ctx.lineTo(rhx,rhy-6);ctx.stroke();
+        ctx.beginPath();ctx.arc(rhx,rhy,6,0,Math.PI*2);
         ctx.fillStyle='rgba(74,144,226,.9)';ctx.fill();
         ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
-        // Rotation arrow icon inside circle
         ctx.fillStyle='#fff';ctx.font='bold 8px sans-serif';
         ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.fillText('↻',hx,hy+.5);
+        ctx.fillText('↻',rhx,rhy+.5);
+        // Resize handle (right-center, green)
+        const rzx=hw+16,rzy=0;
+        ctx.strokeStyle='rgba(74,144,226,.6)';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(hw,0);ctx.lineTo(rzx-6,0);ctx.stroke();
+        ctx.beginPath();ctx.arc(rzx,rzy,6,0,Math.PI*2);
+        ctx.fillStyle='rgba(60,180,80,.9)';ctx.fill();
+        ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+        ctx.fillStyle='#fff';ctx.font='bold 9px sans-serif';
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('↔',rzx,rzy+.5);
       }
       ctx.restore();
     }
@@ -1098,7 +1237,32 @@ function fitExport(){
   est.ox=0;est.oy=0;est.sc=1;
   renderExport();
 }
-function zoomExp(f){est.sc*=f;renderExport();}
+function scaleObjectsFrom(px,py,f){
+  for(const o of objects){
+    if(o.type==='text'){o.x=px+(o.x-px)*f;o.y=py+(o.y-py)*f;if(o.boxW)o.boxW*=f;}
+    else if(o.type==='line'){o.x1=px+(o.x1-px)*f;o.y1=py+(o.y1-py)*f;o.x2=px+(o.x2-px)*f;o.y2=py+(o.y2-py)*f;}
+    else if(o.type==='poly'){o.pts=o.pts.map(p=>({x:px+(p.x-px)*f,y:py+(p.y-py)*f}));}
+  }
+}
+function zoomExp(f){
+  const cv=document.getElementById('export-canvas');
+  if(!cv){return;}
+  const px=cv.width/2, py=cv.height/2;
+  const opts=getExpOpts();
+  // Compute world point under the screen pivot, then change scale and recompute pan
+  const before=computeMapParams(cv.width,cv.height,opts.padding,est.sc,est.ox,est.oy);
+  const world=screenToWorld(px,py,before);
+  // apply scale
+  est.sc *= f;
+  // after scaling, compute where that world point lands and shift est.ox/oy to keep it under pivot
+  const after=computeMapParams(cv.width,cv.height,opts.padding,est.sc,est.ox,est.oy);
+  const newScr=worldToScreen(world.x,world.y,after);
+  est.ox += px - newScr.sx;
+  est.oy += py - newScr.sy;
+  // scale drawn objects coordinates so they stay anchored in canvas space
+  scaleObjectsFrom(px,py,f);
+  renderExport();
+}
 
 // ════════════════════════════════════════════════════════
 //  TOOL SYSTEM
@@ -1127,13 +1291,31 @@ function setTool(t){
   renderExport();
 }
 
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function selChange(key,val){
+  if(!iact.selId)return;
+  const o=objects.find(o=>o.id===iact.selId);if(!o)return;
+  if(key==='text'){o.text=val;if(o.boxW){const tmpCtx=expCV.getContext('2d');tmpCtx.font=`${o.bold?'bold ':''}${o.fontSize||18}px "${o.fontFamily||'Oxanium'}",sans-serif`;o.boxW=Math.max(20,tmpCtx.measureText(val).width*1.05);}}
+  else if(key==='textColor')o.textColor=val;
+  else if(key==='fontSize'){const fs=Math.max(4,+val);const tmpCtx=expCV.getContext('2d');tmpCtx.font=`${o.bold?'bold ':''}${fs}px "${o.fontFamily||'Oxanium'}",sans-serif`;o.boxW=Math.max(20,tmpCtx.measureText(o.text||'W').width);o.fontSize=fs;}
+  else if(key==='fontFamily')o.fontFamily=val;
+  else if(key==='bold'){o.bold=val;if(o.boxW){const tmpCtx=expCV.getContext('2d');tmpCtx.font=`${val?'bold ':''}${o.fontSize||18}px "${o.fontFamily||'Oxanium'}",sans-serif`;o.boxW=Math.max(20,tmpCtx.measureText(o.text||'W').width);}}
+  else if(key==='rotation')o.rotation=(+val%360)*Math.PI/180;
+  else if(key==='stroke')o.stroke=val;
+  else if(key==='lineWidth')o.width=Math.max(0.5,+val);
+  else if(key==='dash')o.dash=val==='dashed'?[10,5]:val==='dotted'?[2,5]:[];
+  else if(key==='arrow')o.arrow=val;
+  else if(key==='cap')o.cap=val;
+  pushCedit();renderExport();updateToolProps();
+}
+
 function updateToolProps(){
   const strip=document.getElementById('tool-props-strip');
   const t=currentTool;
   if(t==='text'){
     strip.className='tool-props-strip visible';
-    strip.innerHTML=`<span class="tp-label">Text</span><div class="tp-val"><input class="tp-input" id="tp-txt" style="width:160px;" value="Label text" placeholder="Text to place…"></div>
-      <span class="tp-label">Align</span><div class="tp-val"><select class="tp-input" id="tp-align"><option>left</option><option>center</option><option>right</option></select></div>`;
+    strip.innerHTML=`<span class="tp-label">Text</span><div class="tp-val"><input class="tp-input" id="tp-txt" style="width:160px;" value="Label text" placeholder="Text to place…"></div>`;
   } else if(t==='line'||t==='poly'){
     strip.className='tool-props-strip visible';
     strip.innerHTML=`<span class="tp-label">${t==='line'?'Line':'Polyline'}</span>
@@ -1141,24 +1323,52 @@ function updateToolProps(){
       <span class="tp-label">Tip size</span><div class="tp-val"><input class="tp-input" id="tp-arrsz" type="number" min="6" max="40" value="14" style="width:52px;"></div>
       ${t==='poly'?'<span style="color:#888;font-size:10px;margin-left:8px;">Double-click or Enter to finish</span>':''}`;
   } else if(t==='select'){
-    // Show rotation controls if a text object is selected
     const selObj=iact.selId?objects.find(o=>o.id===iact.selId):null;
     if(selObj&&selObj.type==='text'){
       const deg=Math.round(((selObj.rotation||0)*180/Math.PI+360)%360);
+      const{fs}=getTextMetrics(selObj);
+      const effFs=Math.round(fs);
+      const fonts=['Oxanium','Share Tech Mono','Arial','Georgia','Times New Roman'];
       strip.className='tool-props-strip visible';
-      strip.innerHTML=`<span class="tp-label">Selected Text</span>
-        <span class="tp-label">Rotation</span>
-        <div class="tp-val">
-          <input class="tp-input" id="tp-rot-deg" type="number" min="0" max="359" value="${deg}" style="width:56px;" oninput="setTextRotationDeg(+this.value)" title="Rotation in degrees">
-          <span style="color:#888;font-size:10px;">°</span>
+      strip.innerHTML=`
+        <span class="tp-label">✏ Text</span>
+        <div class="tp-val"><input class="tp-input" id="tp-sel-txt" style="width:120px;" value="${escHtml(selObj.text||'')}" oninput="selChange('text',this.value)"></div>
+        <span class="tp-label">Color</span>
+        <div class="tp-val"><input type="color" class="tp-input" style="width:26px;height:22px;padding:1px;" value="${selObj.textColor||'#000000'}" oninput="selChange('textColor',this.value)"></div>
+        <span class="tp-label">Font</span>
+        <div class="tp-val"><select class="tp-input" style="width:90px;" onchange="selChange('fontFamily',this.value)">${fonts.map(f=>`<option${selObj.fontFamily===f?' selected':''}>${escHtml(f)}</option>`).join('')}</select></div>
+        <span class="tp-label">Size</span>
+        <div class="tp-val"><input class="tp-input" type="number" min="4" max="400" value="${effFs}" style="width:48px;" onchange="selChange('fontSize',this.value)"></div>
+        <div class="tp-val"><button class="tp-input" style="cursor:pointer;padding:2px 8px;font-weight:${selObj.bold?'bold':'normal'};" onclick="selChange('bold',!objects.find(o=>o.id===iact.selId)?.bold)">B</button></div>
+        <span class="tp-label">Rot°</span>
+        <div class="tp-val"><input class="tp-input" type="number" min="0" max="359" value="${deg}" style="width:46px;" oninput="selChange('rotation',this.value)"></div>
+        <div class="tp-val" style="gap:3px;">
+          <button class="tp-input" style="cursor:pointer;padding:2px 5px;" onclick="selChange('rotation',0)" title="Reset">↺</button>
+          <button class="tp-input" style="cursor:pointer;padding:2px 5px;" onclick="selChange('rotation',90)">90°</button>
         </div>
-        <div class="tp-val" style="gap:4px;">
-          <button class="tp-input" style="cursor:pointer;padding:3px 7px;" onclick="setTextRotationDeg(0)" title="Reset rotation">↺ 0°</button>
-          <button class="tp-input" style="cursor:pointer;padding:3px 7px;" onclick="setTextRotationDeg(90)">90°</button>
-          <button class="tp-input" style="cursor:pointer;padding:3px 7px;" onclick="setTextRotationDeg(180)">180°</button>
-          <button class="tp-input" style="cursor:pointer;padding:3px 7px;" onclick="setTextRotationDeg(270)">270°</button>
-        </div>
-        <span style="color:#555;font-size:9px;margin-left:6px;">Drag ↻ handle to rotate freely</span>`;
+        <span style="color:#555;font-size:9px;margin-left:4px;">↔ drag to resize</span>`;
+    } else if(selObj&&(selObj.type==='line'||selObj.type==='poly')){
+      const dashId=(selObj.dash&&selObj.dash.length)?(selObj.dash[0]===2?'dotted':'dashed'):'solid';
+      strip.className='tool-props-strip visible';
+      strip.innerHTML=`
+        <span class="tp-label">╱ ${selObj.type==='line'?'Line':'Poly'}</span>
+        <span class="tp-label">Color</span>
+        <div class="tp-val"><input type="color" class="tp-input" style="width:26px;height:22px;padding:1px;" value="${selObj.stroke||'#000000'}" oninput="selChange('stroke',this.value)"></div>
+        <span class="tp-label">Width</span>
+        <div class="tp-val"><input class="tp-input" type="number" min="0.5" max="30" step="0.5" value="${selObj.width||1}" style="width:46px;" onchange="selChange('lineWidth',this.value)"></div>
+        <span class="tp-label">Style</span>
+        <div class="tp-val"><select class="tp-input" style="width:75px;" onchange="selChange('dash',this.value)">
+          <option value="solid"${dashId==='solid'?' selected':''}>— Solid</option>
+          <option value="dashed"${dashId==='dashed'?' selected':''}>-- Dashed</option>
+          <option value="dotted"${dashId==='dotted'?' selected':''}>·· Dotted</option>
+        </select></div>
+        <span class="tp-label">Arrow</span>
+        <div class="tp-val"><select class="tp-input" style="width:75px;" onchange="selChange('arrow',this.value)">
+          <option value="none"${!selObj.arrow||selObj.arrow==='none'?' selected':''}>None</option>
+          <option value="end"${selObj.arrow==='end'?' selected':''}>→ End</option>
+          <option value="start"${selObj.arrow==='start'?' selected':''}>← Start</option>
+          <option value="both"${selObj.arrow==='both'?' selected':''}>↔ Both</option>
+        </select></div>`;
     } else {
       strip.className='tool-props-strip';
     }
@@ -1207,11 +1417,11 @@ function cvXY(e){const r=expCV.getBoundingClientRect();return{x:(e.clientX-r.lef
 // ════════════════════════════════════════════════════════
 function findLabel(cx,cy){
   if(!_expPts||!_toS)return null;
-  const opts=getExpOpts();
+  const opts=getExpOpts(),sc=est.sc,sfs=opts.fontSize*sc;
   for(const k of Object.keys(_expPts)){
-    const{sx,sy}=_toS(_expPts[k].x,_expPts[k].y);const def_dy=-opts.dotSize-opts.fontSize*0.7;
-    const dx=labelPositions[k]?.dx??0,dy=labelPositions[k]?.dy??def_dy;
-    if(Math.abs(cx-(sx+dx))<opts.fontSize&&Math.abs(cy-(sy+dy))<opts.fontSize)return k;
+    const{sx,sy}=_toS(_expPts[k].x,_expPts[k].y);const defN=-(opts.dotSize+opts.fontSize*0.7);
+    const sdx=(labelPositions[k]?.dx??0)*sc,sdy=(labelPositions[k]?.dy??defN)*sc;
+    if(Math.abs(cx-(sx+sdx))<sfs&&Math.abs(cy-(sy+sdy))<sfs)return k;
   }
   return null;
 }
@@ -1220,10 +1430,12 @@ function findLabel(cx,cy){
 //  OBJECT HIT
 // ════════════════════════════════════════════════════════
 function getTextMetrics(o){
-  const cv=expCV,ctx=cv.getContext('2d');
-  const fs=o.fontSize||18,ff=o.fontFamily||'Oxanium';
-  ctx.font=`${o.bold?'bold ':''}${fs}px "${ff}",sans-serif`;
-  const tw=ctx.measureText(o.text||'').width;
+  const ctx=expCV.getContext('2d');
+  const ff=o.fontFamily||'Oxanium',bold=o.bold||false;
+  let fs=o.fontSize||18;
+  if(o.boxW&&o.text)fs=fitFontSize(o.text,ff,bold,o.boxW);
+  ctx.font=`${bold?'bold ':''}${fs}px "${ff}",sans-serif`;
+  const tw=o.boxW??ctx.measureText(o.text||'').width;
   return{tw,fs,cx:o.x+tw/2,cy:o.y+fs/2};
 }
 
@@ -1246,6 +1458,13 @@ function hitTestRotateHandle(cx,cy,o){
   // Convert handle local → world
   const wx=ox+localHx*Math.cos(rot)-localHy*Math.sin(rot);
   const wy=oy+localHx*Math.sin(rot)+localHy*Math.cos(rot);
+  return Math.hypot(cx-wx,cy-wy)<=10;
+}
+
+function hitTestResizeHandle(cx,cy,o){
+  const{tw,fs,cx:ox,cy:oy}=getTextMetrics(o);
+  const rot=o.rotation||0,hw=tw/2+4+16;
+  const wx=ox+hw*Math.cos(rot),wy=oy+hw*Math.sin(rot);
   return Math.hypot(cx-wx,cy-wy)<=10;
 }
 
@@ -1294,12 +1513,18 @@ function commitText(){
     if(o){o.text=text||o.text;pushCedit();}
   } else if(text){
     const s=getDStyle();
-    objects.push({id:nextObjId++,type:'text',x:_txtCtx.x,y:_txtCtx.y,text,
-      fontSize:s.fontSize,fontFamily:s.fontFamily,textColor:s.textColor,bold:s.bold});
+    const tmpCtx=expCV.getContext('2d');
+    tmpCtx.font=`${s.bold?'bold ':''}${s.fontSize}px "${s.fontFamily}",sans-serif`;
+    const natW=Math.max(s.fontSize*2,tmpCtx.measureText(text).width);
+    objects.push({id:nextObjId++,type:'text',
+      x:_txtCtx.x-natW/2,y:_txtCtx.y-s.fontSize/2,
+      text,fontSize:s.fontSize,fontFamily:s.fontFamily,
+      textColor:s.textColor,bold:s.bold,boxW:natW});
     pushCedit();
   }
-  ov.style.display='none';ov.value='';_txtCtx=null;
-  setTool('pan');
+  ov.style.display='none';ov.value='';
+  const wasEditing=!!_txtCtx?.editId;_txtCtx=null;
+  if(!wasEditing)setTool('pan');else{renderExport();updateToolProps();}
 }
 function cancelText(){
   const ov=document.getElementById('txt-overlay');
@@ -1347,22 +1572,24 @@ expCV.addEventListener('mousedown',e=>{
   const cx=sp?.x??x,cy=sp?.y??y;
 
   if(currentTool==='pan'){
-    if(exportOpts.showLabels){const lbl=findLabel(x,y);if(lbl){const opts=getExpOpts();const ddy=-opts.dotSize-opts.fontSize*0.7;iact.dragLabel=lbl;iact.dlbx=x;iact.dlby=y;iact.dlBase={dx:labelPositions[lbl]?.dx??0,dy:labelPositions[lbl]?.dy??ddy};return;}}
+    if(exportOpts.showLabels){const lbl=findLabel(x,y);if(lbl){const opts=getExpOpts();const defN=-(opts.dotSize+opts.fontSize*0.7);iact.dragLabel=lbl;iact.dlbx=x;iact.dlby=y;iact.dlBase={dx:labelPositions[lbl]?.dx??0,dy:labelPositions[lbl]?.dy??defN};return;}}
     iact.panning=true;iact.lx=e.clientX;iact.ly=e.clientY;
   }
   else if(currentTool==='select'){
     const id=findObj(x,y);
-    // Check rotate handle first (only when an object is already selected)
     if(iact.selId){
       const selObj=objects.find(o=>o.id===iact.selId);
+      // Resize handle (right-center of text box)
+      if(selObj&&selObj.type==='text'&&hitTestResizeHandle(x,y,selObj)){
+        const{tw}=getTextMetrics(selObj);
+        iact.resizing=true;iact.resizeOrigX=x;iact.resizeOrigY=y;iact.resizeOrigW=selObj.boxW||tw;
+        expCV.style.cursor='ew-resize';return;
+      }
+      // Rotate handle (top-center)
       if(selObj&&selObj.type==='text'&&hitTestRotateHandle(x,y,selObj)){
-        // Start rotating
         const{cx:ox,cy:oy}=getTextMetrics(selObj);
-        iact.rotating=true;
-        iact.rotOrigAngle=Math.atan2(y-oy,x-ox);
-        iact.rotObjBase=selObj.rotation||0;
-        expCV.style.cursor='crosshair';
-        return;
+        iact.rotating=true;iact.rotOrigAngle=Math.atan2(y-oy,x-ox);
+        iact.rotObjBase=selObj.rotation||0;expCV.style.cursor='crosshair';return;
       }
     }
     objects.forEach(o=>delete o._sel);
@@ -1394,8 +1621,8 @@ expCV.addEventListener('mousemove',e=>{
   if(currentTool==='pan'){
     if(iact.dragLabel&&iact.dlBase){
       labelPositions[iact.dragLabel]={
-        dx:iact.dlBase.dx+(x-iact.dlbx),
-        dy:iact.dlBase.dy+(y-iact.dlby)
+        dx:iact.dlBase.dx+(x-iact.dlbx)/est.sc,
+        dy:iact.dlBase.dy+(y-iact.dlby)/est.sc
       };
       renderExport();expCV.style.cursor='grabbing';return;
     }
@@ -1408,6 +1635,15 @@ expCV.addEventListener('mousemove',e=>{
     }
   }
   else if(currentTool==='select'){
+    if(iact.resizing&&iact.selId){
+      const o=objects.find(o=>o.id===iact.selId);
+      if(o&&o.type==='text'){
+        const rot=o.rotation||0,proj=(cx-iact.resizeOrigX)*Math.cos(rot)+(cy-iact.resizeOrigY)*Math.sin(rot);
+        o.boxW=Math.max(20,iact.resizeOrigW+proj);
+        renderExport();expCV.style.cursor='ew-resize';
+      }
+      return;
+    }
     if(iact.rotating&&iact.selId){
       const o=objects.find(o=>o.id===iact.selId);
       if(o&&o.type==='text'){
@@ -1428,9 +1664,8 @@ expCV.addEventListener('mousemove',e=>{
       // Hover cursor: change to rotate cursor when over handle
       if(iact.selId){
         const selObj=objects.find(o=>o.id===iact.selId);
-        if(selObj&&selObj.type==='text'&&hitTestRotateHandle(x,y,selObj)){
-          expCV.style.cursor='crosshair';return;
-        }
+        if(selObj&&selObj.type==='text'&&hitTestResizeHandle(x,y,selObj)){expCV.style.cursor='ew-resize';return;}
+        if(selObj&&selObj.type==='text'&&hitTestRotateHandle(x,y,selObj)){expCV.style.cursor='crosshair';return;}
       }
       expCV.style.cursor='default';
     }
@@ -1458,6 +1693,9 @@ expCV.addEventListener('mouseup',e=>{
     iact.panning=false;expCV.style.cursor='grab';
   }
   else if(currentTool==='select'){
+    if(iact.resizing){
+      iact.resizing=false;pushCedit();updateToolProps();expCV.style.cursor='default';return;
+    }
     if(iact.rotating){
       iact.rotating=false;pushCedit();
       expCV.style.cursor='default';
@@ -1484,16 +1722,22 @@ expCV.addEventListener('mouseup',e=>{
 });
 
 expCV.addEventListener('mouseleave',()=>{
-  iact.panning=false;iact.dragLabel=null;iact.rotating=false;
+  iact.panning=false;iact.dragLabel=null;iact.rotating=false;iact.resizing=false;
   document.getElementById('snap-ring').style.display='none';
   if(currentTool==='pan')expCV.style.cursor='grab';
 });
 
 expCV.addEventListener('dblclick',e=>{
   if(currentTool==='poly'){finishPoly();return;}
-  if(currentTool==='select'){
-    const{x,y}=cvXY(e);const id=findObj(x,y);
-    if(id){const o=objects.find(o=>o.id===id);if(o&&o.type==='text')openTextOverlay(o.x,o.y,o);}
+  const{x,y}=cvXY(e);const id=findObj(x,y);
+  if(id){
+    const o=objects.find(o=>o.id===id);
+    if(o&&o.type==='text'){
+      // switch to select, select the object, open text editor
+      if(currentTool!=='select'){setTool('select');}
+      iact.selId=o.id;updSelBtns2();updateToolProps();renderExport();
+      openTextOverlay(o.x,o.y,o);
+    }
   }
 });
 
@@ -1504,8 +1748,7 @@ expCV.addEventListener('wheel',e=>{
     panObjects(-e.deltaX,-e.deltaY);
     est.ox-=e.deltaX;est.oy-=e.deltaY;
   } else {
-    // Normal scroll — zoom
-    est.sc*=e.deltaY<0?1.1:0.91;
+    zoomExp(e.deltaY<0?1.1:0.91);return;
   }
   renderExport();
 },{passive:false});
@@ -1672,9 +1915,120 @@ function buildCleanCanvas(){
   const off=document.createElement('canvas');off.width=src.width;off.height=src.height;
   const ctx=off.getContext('2d');
   const pts=computePoints(surveyData);
-  drawTraverse(ctx,pts,surveyData,off.width,off.height,est.ox,est.oy,est.sc,getExpOpts());
-  renderObjects(ctx,objects,null,null);
+  const opts=getExpOpts();
+  const W=off.width,H=off.height,pad=opts.padding;
+
+  // Always render traverse at base (sc=1, ox=0, oy=0) so it fills the canvas cleanly
+  _expPts=pts;
+  _toS=drawTraverse(ctx,pts,surveyData,W,H,0,0,1,opts);
+
+  // Objects are stored in the current zoomed canvas pixel space.
+  // Convert them to base (sc=1, ox=0, oy=0) canvas space so they match the traverse above.
+  const curP=computeMapParams(W,H,pad,est.sc,est.ox,est.oy);
+  const basP=computeMapParams(W,H,pad,1,0,0);
+  function cvToBase(px,py){
+    const w=screenToWorld(px,py,curP);
+    const b=worldToScreen(w.x,w.y,basP);
+    return{x:b.sx,y:b.sy};
+  }
+  const sc=est.sc;
+  const normObjs=objects.map(o=>{
+    if(o.type==='text'){
+      const bw=o.boxW||100,ff=o.fontFamily||'Oxanium',bl=o.bold||false;
+      const fs=o.text?fitFontSize(o.text,ff,bl,bw):(o.fontSize||18);
+      const{x:bx,y:by}=cvToBase(o.x+bw/2,o.y+fs/2);
+      const bw2=bw/sc,fs2=o.text?fitFontSize(o.text,ff,bl,bw2):(o.fontSize||18);
+      return{...o,x:bx-bw2/2,y:by-fs2/2,boxW:bw2};
+    }else if(o.type==='line'){
+      const{x:x1,y:y1}=cvToBase(o.x1,o.y1);
+      const{x:x2,y:y2}=cvToBase(o.x2,o.y2);
+      return{...o,x1,y1,x2,y2};
+    }else if(o.type==='poly'){
+      return{...o,pts:o.pts.map(p=>{const{x,y}=cvToBase(p.x,p.y);return{x,y};})};
+    }
+    return o;
+  });
+  renderObjects(ctx,normObjs,null,null);
   return off;
+}
+
+// Compute the pixel bounding box of all drawn content in BASE canvas space
+// (sc=1, ox=0, oy=0 — matching what buildCleanCanvas renders).
+// Returns {x,y,w,h} in canvas pixels, or null if nothing to show.
+function getContentBounds(pad){
+  pad=pad||48;
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  function expand(x,y,r){r=r||0;minX=Math.min(minX,x-r);minY=Math.min(minY,y-r);maxX=Math.max(maxX,x+r);maxY=Math.max(maxY,y+r);}
+
+  const cv=document.getElementById('export-canvas');
+  const opts=getExpOpts();
+  const pts=computePoints(surveyData);
+  const W=cv.width,H=cv.height,pad0=opts.padding;
+  // Base mapping (sc=1, ox=0, oy=0) — matches buildCleanCanvas
+  const baseToS=makeToScreen(pts,W,H,pad0,1,0,0);
+
+  // Traverse points at base
+  if(pts){
+    for(const k of Object.keys(pts)){
+      const{sx,sy}=baseToS(pts[k].x,pts[k].y);
+      expand(sx,sy,opts.showDots?opts.dotSize:0);
+      if(opts.showLabels){
+        const defN=-(opts.dotSize+opts.fontSize*0.7);
+        // labelPositions stores normalized (sc=1) offsets — use directly at base
+        const ndx=labelPositions[k]?.dx??0;
+        const ndy=labelPositions[k]?.dy??defN;
+        expand(sx+ndx,sy+ndy,opts.fontSize);
+      }
+    }
+  }
+
+  // Objects — convert from current canvas space to base canvas space (same as buildCleanCanvas)
+  const curP=computeMapParams(W,H,pad0,est.sc,est.ox,est.oy);
+  const basP=computeMapParams(W,H,pad0,1,0,0);
+  function cvToBase(px,py){
+    const w=screenToWorld(px,py,curP);const b=worldToScreen(w.x,w.y,basP);
+    return{x:b.sx,y:b.sy};
+  }
+  const sc=est.sc;
+
+  for(const o of objects){
+    if(o.type==='text'){
+      const bw=o.boxW||100,ff=o.fontFamily||'Oxanium',bl=o.bold||false;
+      const fs=o.text?fitFontSize(o.text,ff,bl,bw):(o.fontSize||18);
+      const{x:bx,y:by}=cvToBase(o.x+bw/2,o.y+fs/2);
+      const bw2=bw/sc,fs2=o.text?fitFontSize(o.text,ff,bl,bw2):(o.fontSize||18);
+      expand(bx,by,Math.hypot(bw2/2,fs2/2)+4);
+    }else if(o.type==='line'){
+      const{x:x1,y:y1}=cvToBase(o.x1,o.y1);
+      const{x:x2,y:y2}=cvToBase(o.x2,o.y2);
+      expand(x1,y1,(o.width||1)/2);expand(x2,y2,(o.width||1)/2);
+    }else if(o.type==='poly'){
+      const r=(o.width||1)/2;
+      o.pts.forEach(p=>{const{x,y}=cvToBase(p.x,p.y);expand(x,y,r);});
+    }
+  }
+
+  if(!isFinite(minX))return null;
+  return{x:minX-pad,y:minY-pad,w:maxX-minX+pad*2,h:maxY-minY+pad*2};
+}
+
+// Render to a canvas cropped to content extents (used for preview).
+function buildExtentsCanvas(){
+  // Render full canvas first (also refreshes _toS / _expPts globals)
+  const full=buildCleanCanvas();
+  const bounds=getContentBounds(48);
+  if(!bounds)return full;
+
+  // Clamp crop rect to canvas dimensions
+  const sx=Math.max(0,Math.floor(bounds.x));
+  const sy=Math.max(0,Math.floor(bounds.y));
+  const sw=Math.min(full.width-sx,Math.ceil(bounds.w+(bounds.x<0?bounds.x:0)));
+  const sh=Math.min(full.height-sy,Math.ceil(bounds.h+(bounds.y<0?bounds.y:0)));
+  if(sw<=0||sh<=0)return full;
+
+  const crop=document.createElement('canvas');crop.width=sw;crop.height=sh;
+  crop.getContext('2d').drawImage(full,sx,sy,sw,sh,0,0,sw,sh);
+  return crop;
 }
 
 // ════════════════════════════════════════════════════════
@@ -1682,17 +2036,19 @@ function buildCleanCanvas(){
 // ════════════════════════════════════════════════════════
 function openPreview(){
   if(!surveyData.length){showToast('⚠ No data');return;}
+  // buildExtentsCanvas → buildCleanCanvas both normalise to sc=1 internally,
+  // so no need to touch est here.
+  const off=buildExtentsCanvas();
   const pv=document.getElementById('preview-canvas');
-  const off=buildCleanCanvas();
   const W=off.width,H=off.height;
-  const mW=window.innerWidth*.95,mH=(window.innerHeight-60)*.95;
-  const sc=Math.min(1,mW/W,mH/H);
+  const mW=window.innerWidth*.9,mH=(window.innerHeight-80)*.9;
+  const sc=Math.min(mW/W,mH/H);
   pv.width=Math.round(W*sc);pv.height=Math.round(H*sc);
   const ctx=pv.getContext('2d');
   ctx.fillStyle='#fff';ctx.fillRect(0,0,pv.width,pv.height);
   ctx.drawImage(off,0,0,pv.width,pv.height);
-  ctx.strokeStyle='rgba(0,0,0,.1)';ctx.lineWidth=1;ctx.strokeRect(.5,.5,pv.width-1,pv.height-1);
-  document.getElementById('preview-dims').textContent=`${W} × ${H} px`;
+  ctx.strokeStyle='rgba(0,0,0,.08)';ctx.lineWidth=1;ctx.strokeRect(.5,.5,pv.width-1,pv.height-1);
+  document.getElementById('preview-dims').textContent=`${W} × ${H} px (actual size)`;
   document.getElementById('preview-modal').classList.add('open');
   pv.onclick=e=>e.stopPropagation();
 }
@@ -1719,6 +2075,18 @@ document.addEventListener('DOMContentLoaded',()=>{
   updPasteUndoBtns();updTableUndoBtns();updCeditBtns();
   setTool('pan');
   updateShortcutLabels();
+  // initialize toolbar line-style dropdown to match sidebar control
+  const tbLine=document.getElementById('tb-line-style');
+  const sideDash=document.getElementById('d-dash');
+  if(tbLine&&sideDash){
+    tbLine.value = sideDash.value || 'solid';
+    tbLine.addEventListener('change',()=>{sideDash.value=tbLine.value;previewDirty=true;renderExport();});
+    // clicking the main area should open the tool; clicking the select should only change style
+    const toolLineBtn=document.getElementById('tool-line');
+    if(toolLineBtn){
+      toolLineBtn.addEventListener('click',()=>setTool('line'));
+    }
+  }
 });
 </script>
 <footer>
