@@ -1,0 +1,5 @@
+__pycache__
+.venv
+app.html
+app.py
+appv1.py
